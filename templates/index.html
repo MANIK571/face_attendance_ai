@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Face Attendance</title>
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+
+<h2>Face Attendance System</h2>
+
+<input type="text" id="username" placeholder="Enter username"><br><br>
+
+<video id="video" width="400" height="300" autoplay></video><br><br>
+
+<button onclick="startCamera()">Open Camera</button>
+<button onclick="registerUser()">Register</button>
+<button onclick="punchIn()">Punch In</button>
+<button onclick="punchOut()">Punch Out</button>
+
+<p id="status">Idle</p>
+
+<canvas id="canvas" width="400" height="300" style="display:none;"></canvas>
+
+<hr>
+
+<h3>Registered Users</h3>
+<div id="users">
+{% for user in users %}
+<div class="user-card" id="user-{{ user.name }}">
+    <img src="{{ user.image }}">
+    <p>{{ user.name }}</p>
+    <button onclick="deleteUser('{{ user.name }}')">Delete</button>
+</div>
+{% endfor %}
+</div>
+
+<hr>
+
+<h3>Attendance Records</h3>
+<table>
+<tr>
+    <th>Name</th>
+    <th>Date</th>
+    <th>Punch In</th>
+    <th>Punch Out</th>
+</tr>
+{% for row in attendance %}
+<tr>
+    <td>{{ row.username or "" }}</td>
+    <td>{{ row.date or "" }}</td>
+    <td>{{ row.punch_in or "" }}</td>
+    <td>{{ row.punch_out or "" }}</td>
+
+</tr>
+{% endfor %}
+</table>
+
+<script>
+let video = document.getElementById("video");
+let statusText = document.getElementById("status");
+
+function startCamera() {
+    navigator.mediaDevices.getUserMedia({ video: true })
+    .then(stream => {
+        video.srcObject = stream;
+        statusText.innerText = "Camera started";
+    })
+    .catch(() => alert("Camera access denied"));
+}
+
+function captureFrames(url) {
+    const canvas = document.getElementById("canvas");
+    const ctx = canvas.getContext("2d");
+    const fd = new FormData();
+    let count = 0;
+
+    statusText.innerText = "Capturing frames...";
+
+    function snap() {
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        canvas.toBlob(blob => {
+            fd.append("image" + count, blob);
+            count++;
+            statusText.innerText = `Capturing frame ${count}/20`;
+
+            if (count < 20) {
+                setTimeout(snap, 200);
+            } else {
+                statusText.innerText = "Processing attendance...";
+                fetch(url, { method: "POST", body: fd })
+                .then(res => res.json())
+                .then(data => {
+                    statusText.innerText = data.message;
+                    if (data.refresh) {
+                        setTimeout(() => {
+                            window.location.href = "/";
+                            }, 800);
+                        }
+            });
+
+               
+            }
+        });
+    }
+    snap();
+}
+
+function registerUser() {
+    const username = document.getElementById("username").value;
+    if (!username) return alert("Enter username");
+
+    const canvas = document.getElementById("canvas");
+    canvas.getContext("2d").drawImage(video, 0, 0, canvas.width, canvas.height);
+
+    canvas.toBlob(blob => {
+        const fd = new FormData();
+        fd.append("username", username);
+        fd.append("image", blob);
+
+        fetch("/register", { method: "POST", body: fd })
+        .then(res => res.json())
+        .then(data => {
+            alert(data.message);
+            if (data.status === "success") location.reload();
+        });
+    });
+}
+
+function deleteUser(username) {
+    fetch("/delete_user", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username })
+    })
+    .then(res => res.json())
+    .then(data => {
+        alert(data.message);
+        if (data.status === "success") {
+            document.getElementById("user-" + username).remove();
+        }
+    });
+}
+
+function punchIn() { captureFrames("/punch_in"); }
+function punchOut() { captureFrames("/punch_out"); }
+</script>
+
+</body>
+</html>

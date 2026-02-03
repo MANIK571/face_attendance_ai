@@ -1,0 +1,7 @@
+venv/
+__pycache__/
+*.pyc
+data/faces_data.pkl
+data/attendance.csv
+temp_frames/
+temp.jpg
