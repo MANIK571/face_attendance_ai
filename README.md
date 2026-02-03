@@ -89,7 +89,7 @@ These limitations are acceptable for attendance applications.
 - Flask
 - OpenCV
 - face_recognition (dlib)
-- HTML, CSS, JavaScript
+- HTML, CSS
 - CSV / local file storage
 
 ---
